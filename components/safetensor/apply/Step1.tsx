@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Toast from '../Toast';
 import {
   mockSendMobileOTP,
   mockVerifyMobileOTP,
   mockCheckPANLinkage,
   mockCheckEmploymentEligibility,
+  extractPAN,
 } from '@/lib/safetensor/mockApis';
 
 export interface Step1Data {
   pan: string;
+  panUserId: string;
   mobile: string;
   employment: 'salaried' | 'self_employed';
 }
@@ -20,13 +22,16 @@ interface Props {
 }
 
 type ToastState = { message: string; type: 'error' | 'success' | 'info' } | null;
+type PANStatus = 'idle' | 'extracting' | 'extracted' | 'error';
 
-function validatePAN(pan: string) {
-  return /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan.toUpperCase());
-}
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
 export default function Step1({ onNext }: Props) {
   const [pan, setPan] = useState('');
+  const [panStatus, setPanStatus] = useState<PANStatus>('idle');
+  const [panError, setPanError] = useState('');
+  const [panUserId, setPanUserId] = useState('');
+
   const [mobile, setMobile] = useState('');
   const [employment, setEmployment] = useState<'salaried' | 'self_employed'>('salaried');
 
@@ -37,13 +42,57 @@ export default function Step1({ onNext }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
+  // Discard stale responses if user edits PAN while extraction is in-flight
+  const latestPanRef = useRef('');
+
   function showToast(message: string, type: NonNullable<ToastState>['type'] = 'error') {
     setToast({ message, type });
   }
 
+  async function triggerPANExtract(panValue: string) {
+    latestPanRef.current = panValue;
+    setPanStatus('extracting');
+    setPanError('');
+    setPanUserId('');
+    console.log('[PAN] Calling extractPAN API for:', panValue);
+    try {
+      const res = await extractPAN(panValue);
+      console.log('[PAN] API response:', res);
+      if (latestPanRef.current !== panValue) return; 
+      if (res.success && res.data) {
+        setPanStatus('extracted');
+        setPanUserId(res.data.id);
+      } else {
+        setPanStatus('error');
+        setPanError(res.message ?? 'PAN verification failed. Please try again.');
+      }
+    } catch {
+      if (latestPanRef.current !== panValue) return;
+      setPanStatus('error');
+      setPanError('Unable to verify PAN. Please check your connection.');
+    }
+  }
+
+  function handlePANChange(raw: string) {
+    const value = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+    setPan(value);
+    if (panStatus !== 'idle') {
+      setPanStatus('idle');
+      setPanUserId('');
+      setPanError('');
+      setOtpSent(false);
+      setOtp('');
+    }
+    console.log('[PAN] length:', value.length, '| regex:', PAN_REGEX.test(value), '| value:', value);
+    if (value.length === 10 && PAN_REGEX.test(value)) {
+      console.log('[PAN] Triggering extract for', value);
+      triggerPANExtract(value);
+    }
+  }
+
   async function handleSendOTP() {
-    if (!validatePAN(pan)) {
-      showToast('Please enter a valid PAN (e.g. ABCDE1234F)');
+    if (panStatus !== 'extracted') {
+      showToast('Please wait for PAN verification to complete');
       return;
     }
     if (!/^\d{10}$/.test(mobile)) {
@@ -88,11 +137,13 @@ export default function Step1({ onNext }: Props) {
         return;
       }
 
-      onNext({ pan: pan.toUpperCase(), mobile, employment });
+      onNext({ pan, panUserId, mobile, employment });
     } finally {
       setVerifying(false);
     }
   }
+
+  const canSendOTP = panStatus === 'extracted' && mobile.length === 10;
 
   return (
     <div className="pt-2 pb-4 space-y-5">
@@ -105,14 +156,51 @@ export default function Step1({ onNext }: Props) {
       {/* PAN */}
       <div>
         <label className="text-xs font-semibold text-blue-800 mb-1.5 block">PAN Number *</label>
-        <input
-          value={pan}
-          onChange={(e) => setPan(e.target.value.toUpperCase().slice(0, 10))}
-          placeholder="ABCDE1234F"
-          maxLength={10}
-          className="w-full border border-blue-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 tracking-widest font-mono transition-all"
-        />
-        <p className="text-xs text-gray-400 mt-1">Format: 5 letters · 4 digits · 1 letter</p>
+        <div className="relative">
+          <input
+            value={pan}
+            onChange={(e) => handlePANChange(e.target.value)}
+            placeholder="ABCDE1234F"
+            maxLength={10}
+            className={`w-full border rounded-xl px-4 py-3 pr-10 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 transition-all tracking-widest font-mono ${
+              panStatus === 'extracted'
+                ? 'border-green-400 focus:ring-green-200 bg-green-50'
+                : panStatus === 'error'
+                ? 'border-red-300 focus:ring-red-100'
+                : 'border-blue-200 focus:ring-blue-300 focus:border-blue-400'
+            }`}
+          />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+            {panStatus === 'extracting' && (
+              <svg className="w-4 h-4 text-blue-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+              </svg>
+            )}
+            {panStatus === 'extracted' && (
+              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {panStatus === 'error' && (
+              <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </div>
+        </div>
+        {panStatus === 'idle' && (
+          <p className="text-xs text-gray-400 mt-1">Format: 5 letters · 4 digits · 1 letter</p>
+        )}
+        {panStatus === 'extracting' && (
+          <p className="text-xs text-blue-500 font-medium mt-1">Verifying PAN…</p>
+        )}
+        {panStatus === 'extracted' && (
+          <p className="text-xs text-green-600 font-semibold mt-1">PAN verified successfully</p>
+        )}
+        {panStatus === 'error' && (
+          <p className="text-xs text-red-500 font-medium mt-1">{panError}</p>
+        )}
       </div>
 
       {/* Mobile */}
@@ -124,7 +212,11 @@ export default function Step1({ onNext }: Props) {
           </div>
           <input
             value={mobile}
-            onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))}
+            onChange={(e) => {
+              setMobile(e.target.value.replace(/\D/g, '').slice(0, 10));
+              setOtpSent(false);
+              setOtp('');
+            }}
             placeholder="9876543210"
             maxLength={10}
             className="flex-1 border border-blue-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
@@ -166,7 +258,7 @@ export default function Step1({ onNext }: Props) {
       {!otpSent ? (
         <button
           onClick={handleSendOTP}
-          disabled={sending || pan.length < 10 || mobile.length < 10}
+          disabled={sending || !canSendOTP}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
         >
           {sending ? (
@@ -202,7 +294,6 @@ export default function Step1({ onNext }: Props) {
                 Resend
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-1">Use any 6-digit code (demo mode)</p>
           </div>
 
           <button

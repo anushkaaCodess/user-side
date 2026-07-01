@@ -1,4 +1,26 @@
-// All API calls are mocked. Replace these with real implementations when APIs are ready.
+
+// ── Real APIs ─────────────────────────────────────────────────────────────────
+
+export interface PANExtractResponse {
+  success: boolean;
+  message: string;
+  data: { id: string; pan_number: string } | null;
+  errors: string[] | null;
+  timestamp: string;
+}
+
+/** Auto-triggered when PAN reaches 10 valid characters. Proxied via /api/pan/extract — key stays server-side. */
+export async function extractPAN(pan: string): Promise<PANExtractResponse> {
+  const res = await fetch('/api/pan/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pan_number: pan }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<PANExtractResponse>;
+}
+
+// ── Mock APIs ─────────────────────────────────────────────────────────────────
 
 function delay(ms: number) {
   return new Promise((res) => setTimeout(res, ms));
