@@ -6,6 +6,7 @@ import Step2, { Step2Data } from './Step2';
 import Step3, { Step3Data } from './Step3';
 import Step4, { Step4Data } from './Step4';
 import SuccessScreen from './SuccessScreen';
+import { updateEmployeeDetails } from '@/lib/safetensor/mockApis';
 
 interface Props {
   isOpen: boolean;
@@ -31,11 +32,40 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
   const [step4, setStep4] = useState<Step4Data | null>(null);
   const [done, setDone] = useState(false);
   const [refId] = useState(genRefId);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
+
+  async function handleStep3Next(data: Step3Data) {
+    setStep3(data);
+    setSavingDetails(true);
+    setSaveError('');
+    try {
+      const res = await updateEmployeeDetails({
+        user_id: step1!.userId,
+        employement_company_name: step2!.company,
+        prev_salary_date: step2!.salaryDate,
+        monthly_salary: Number(step2!.monthlySalary),
+        pincode: step2!.pincode,
+        personal_email: data.personalEmail,
+        work_email: data.workEmail,
+        location: step2!.location,
+      });
+      if (!res.success) {
+        setSaveError(res.message || 'Failed to save your details. Please try again.');
+        return;
+      }
+      setStep(4);
+    } catch {
+      setSaveError('Something went wrong. Please check your connection and try again.');
+    } finally {
+      setSavingDetails(false);
+    }
+  }
 
   function reset() {
     setStep(1);
@@ -44,6 +74,8 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
     setStep3(null);
     setStep4(null);
     setDone(false);
+    setSavingDetails(false);
+    setSaveError('');
   }
 
   function handleClose() {
@@ -95,7 +127,7 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
         </div>
 
         {/* Step indicator */}
-        {!done && (
+        {!done && !savingDetails && (
           <div className="px-6 pt-5 pb-2 shrink-0 bg-white border-b border-blue-50">
             <div className="flex items-center">
               {STEPS.map((s, i) => {
@@ -139,12 +171,32 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-6 pb-4">
           {done ? (
             <SuccessScreen referenceId={refId} onClose={handleClose} />
+          ) : savingDetails ? (
+            <div className="flex flex-col items-center gap-4 py-16">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+              <div className="text-center">
+                <p className="text-sm font-semibold text-blue-900">Saving your details…</p>
+                <p className="text-xs text-gray-400 mt-1">This will only take a moment</p>
+              </div>
+            </div>
           ) : step === 1 ? (
             <Step1 onNext={(d) => { setStep1(d); setStep(2); }} />
           ) : step === 2 ? (
-            <Step2 onNext={(d) => { setStep2(d); setStep(3); }} onBack={() => setStep(1)} />
+            <Step2 onNext={(d) => { setStep2(d); setStep(3); setSaveError(''); }} onBack={() => setStep(1)} />
           ) : step === 3 ? (
-            <Step3 onNext={(d) => { setStep3(d); setStep(4); }} onBack={() => setStep(2)} />
+            <>
+              {saveError && (
+                <div className="sticky top-0 z-10 -mx-1 mb-4 pt-2">
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-xs font-medium">
+                    <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    {saveError}
+                  </div>
+                </div>
+              )}
+              <Step3 onNext={handleStep3Next} onBack={() => { setStep(2); setSaveError(''); }} />
+            </>
           ) : (
             <Step4
               onNext={(d) => { setStep4(d); setDone(true); void step1; void step2; void step3; }}

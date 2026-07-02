@@ -2,19 +2,15 @@
 
 import { useState, useRef } from 'react';
 import Toast from '../Toast';
-import {
-  mockSendMobileOTP,
-  mockVerifyMobileOTP,
-  mockCheckPANLinkage,
-  mockCheckEmploymentEligibility,
-  extractPAN,
-} from '@/lib/safetensor/mockApis';
+import { extractPAN, sendOTP, verifyOTP, VerifyOTPResponse } from '@/lib/safetensor/mockApis';
 
 export interface Step1Data {
   pan: string;
   panUserId: string;
+  userId: string;
   mobile: string;
   employment: 'salaried' | 'self_employed';
+  userName: string;
 }
 
 interface Props {
@@ -25,6 +21,14 @@ type ToastState = { message: string; type: 'error' | 'success' | 'info' } | null
 type PANStatus = 'idle' | 'extracting' | 'extracted' | 'error';
 
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+function formatDOB(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch {
+    return iso;
+  }
+}
 
 export default function Step1({ onNext }: Props) {
   const [pan, setPan] = useState('');
@@ -40,9 +44,12 @@ export default function Step1({ onNext }: Props) {
 
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+
+  // After successful verify-otp, store the user profile and show identity card
+  const [verifiedUser, setVerifiedUser] = useState<NonNullable<VerifyOTPResponse['data']> | null>(null);
+
   const [toast, setToast] = useState<ToastState>(null);
 
-  // Discard stale responses if user edits PAN while extraction is in-flight
   const latestPanRef = useRef('');
 
   function showToast(message: string, type: NonNullable<ToastState>['type'] = 'error') {
@@ -58,7 +65,7 @@ export default function Step1({ onNext }: Props) {
     try {
       const res = await extractPAN(panValue);
       console.log('[PAN] API response:', res);
-      if (latestPanRef.current !== panValue) return; 
+      if (latestPanRef.current !== panValue) return;
       if (res.success && res.data) {
         setPanStatus('extracted');
         setPanUserId(res.data.id);
@@ -82,6 +89,7 @@ export default function Step1({ onNext }: Props) {
       setPanError('');
       setOtpSent(false);
       setOtp('');
+      setVerifiedUser(null);
     }
     console.log('[PAN] length:', value.length, '| regex:', PAN_REGEX.test(value), '| value:', value);
     if (value.length === 10 && PAN_REGEX.test(value)) {
@@ -95,15 +103,25 @@ export default function Step1({ onNext }: Props) {
       showToast('Please wait for PAN verification to complete');
       return;
     }
+    if (employment === 'self_employed') {
+      showToast('Loans are currently available only to salaried individuals.');
+      return;
+    }
     if (!/^\d{10}$/.test(mobile)) {
       showToast('Please enter a valid 10-digit mobile number');
       return;
     }
     setSending(true);
     try {
-      await mockSendMobileOTP(mobile);
+      const res = await sendOTP(mobile);
+      if (!res.success) {
+        showToast(res.message ?? 'Failed to send OTP. Please try again.');
+        return;
+      }
       setOtpSent(true);
       showToast('OTP sent to +91 ' + mobile, 'success');
+    } catch {
+      showToast('Failed to send OTP. Please check your connection.');
     } finally {
       setSending(false);
     }
@@ -116,35 +134,79 @@ export default function Step1({ onNext }: Props) {
     }
     setVerifying(true);
     try {
-      // 1. Verify OTP
-      const otpRes = await mockVerifyMobileOTP(mobile, otp);
-      if (!otpRes.success) {
-        showToast(otpRes.message ?? 'Incorrect OTP. Please try again.');
+      const res = await verifyOTP({ phone: mobile, otp, pan_number: pan, account_type: employment });
+      if (!res.success || !res.data) {
+        showToast(res.message ?? 'OTP verification failed. Please try again.');
         return;
       }
-
-      // 2. Check employment eligibility
-      const empRes = await mockCheckEmploymentEligibility(employment);
-      if (!empRes.eligible) {
-        showToast(empRes.reason ?? 'You are not eligible for a loan at this time.');
-        return;
-      }
-
-      // 3. Check PAN–mobile linkage
-      const linkRes = await mockCheckPANLinkage(pan, mobile);
-      if (!linkRes.linked) {
-        showToast('This phone number is not linked to the provided PAN. Please use the registered mobile number.');
-        return;
-      }
-
-      onNext({ pan, panUserId, mobile, employment });
+      setVerifiedUser(res.data);
+    } catch {
+      showToast('Verification failed. Please check your connection.');
     } finally {
       setVerifying(false);
     }
   }
 
-  const canSendOTP = panStatus === 'extracted' && mobile.length === 10;
+  function handleConfirm() {
+    if (!verifiedUser) return;
+    onNext({
+      pan,
+      panUserId,
+      userId: verifiedUser.id,
+      mobile,
+      employment,
+      userName: verifiedUser.full_name,
+    });
+  }
 
+  const canSendOTP = panStatus === 'extracted' && mobile.length === 10 && employment === 'salaried';
+
+  // ── Identity confirmed state ──────────────────────────────────────────────
+  if (verifiedUser) {
+    return (
+      <div className="pt-2 pb-4 space-y-4">
+        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-sm font-bold text-green-800">Identity Verified</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+            {[
+              { label: 'Full Name', value: verifiedUser.full_name },
+              { label: 'PAN', value: verifiedUser.pan_number },
+              { label: 'Date of Birth', value: formatDOB(verifiedUser.date_of_birth) },
+              { label: 'Gender', value: verifiedUser.gender },
+              { label: 'Father\'s Name', value: verifiedUser.father_name },
+              { label: 'Aadhaar (masked)', value: verifiedUser.masked_aadhaar_number },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">{label}</p>
+                <p className="text-xs font-semibold text-gray-700 mt-0.5">{value || '—'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-400 text-center">
+          Please confirm this is your identity before proceeding.
+        </p>
+
+        <button
+          onClick={handleConfirm}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors text-sm"
+        >
+          Confirm & Continue →
+        </button>
+      </div>
+    );
+  }
+
+  // ── Main form ─────────────────────────────────────────────────────────────
   return (
     <div className="pt-2 pb-4 space-y-5">
       {toast && (
