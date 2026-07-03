@@ -206,7 +206,7 @@ export default function Step1({ onNext }: Props) {
     );
   }
 
-  // ── Main form ─────────────────────────────────────────────────────────────
+  // ── Main form ────────────────
   return (
     <div className="pt-2 pb-4 space-y-5">
       {toast && (
