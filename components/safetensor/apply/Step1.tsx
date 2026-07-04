@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import Toast from '../Toast';
+
 import { extractPAN, sendOTP, verifyOTP, VerifyOTPResponse } from '@/lib/safetensor/mockApis';
 
 export interface Step1Data {

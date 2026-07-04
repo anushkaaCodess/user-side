@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SafeTensor — Transparent Personal Loans up to ₹5 Lakhs",
+  title: "SafeTensor — Transparent Personal Loans up to ₹1 Lakh",
   description: "Get personal loans with clear terms, quick disbursal, and no hidden surprises. Partnered with RBI-Regulated NBFCs.",
 };
 

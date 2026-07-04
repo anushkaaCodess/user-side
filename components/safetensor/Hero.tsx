@@ -68,7 +68,7 @@ export default function Hero({ onApply }: HeroProps) {
           <br />
           <span className="text-blue-600">Personal Loans</span>
         </h1>
-        <p className="text-3xl sm:text-4xl font-semibold text-blue-400 mt-3 mb-6">up to ₹5 Lakhs</p>
+        <p className="text-3xl sm:text-4xl font-semibold text-blue-400 mt-3 mb-6">up to ₹1 Lakh</p>
 
         <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed mb-10">
           Get the funds you need with a simple digital process, clear terms, and no hidden surprises.
