@@ -158,6 +158,16 @@ function SalaryDateCalendar({ selected, onChange }: CalendarProps) {
 
 type LocationStatus = 'requesting' | 'granted' | 'denied' | 'unavailable';
 
+/** Free, no-key, CORS-enabled reverse geocoder — used to derive the pincode from GPS coordinates. */
+async function reverseGeocodePincode(latitude: number, longitude: number): Promise<string> {
+  const res = await fetch(
+    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return typeof data.postcode === 'string' ? data.postcode : '';
+}
+
 export default function Step2({ onNext, onBack }: Props) {
   const [company, setCompany] = useState('');
   const [salaryDate, setSalaryDate] = useState('');
@@ -169,16 +179,26 @@ export default function Step2({ onNext, onBack }: Props) {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationStatus, setLocationStatus] = useState<LocationStatus>('requesting');
 
+  async function resolveLocation(pos: GeolocationPosition) {
+    const loc = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    setLocation(loc);
+    try {
+      const pin = await reverseGeocodePincode(loc.latitude, loc.longitude);
+      setPincode(pin);
+    } catch {
+      setPincode('');
+    } finally {
+      setLocationStatus('granted');
+    }
+  }
+
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocationStatus('unavailable');
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        setLocationStatus('granted');
-      },
+      (pos) => { void resolveLocation(pos); },
       () => setLocationStatus('denied'),
       { timeout: 10000 }
     );
@@ -194,17 +214,16 @@ export default function Step2({ onNext, onBack }: Props) {
     if (!monthlySalary || Number(monthlySalary) < 40000) {
       showToast('Monthly salary must be at least ₹40,000'); return;
     }
-    if (!/^\d{6}$/.test(pincode)) { showToast('Please enter a valid 6-digit pincode'); return; }
+    if (!/^\d{6}$/.test(pincode)) {
+      showToast('Could not detect your pincode from location. Please retry location access.'); return;
+    }
     onNext({ company, salaryDate, monthlySalary, pincode, location });
   }
 
   function retryLocation() {
     setLocationStatus('requesting');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
-        setLocationStatus('granted');
-      },
+      (pos) => { void resolveLocation(pos); },
       () => setLocationStatus('denied'),
       { timeout: 10000 }
     );
@@ -278,18 +297,6 @@ export default function Step2({ onNext, onBack }: Props) {
         <p className="text-xs text-gray-400 mt-1">Minimum net monthly salary: ₹40,000</p>
       </div>
 
-      {/* Pincode */}
-      <div>
-        <label className="text-xs font-semibold text-blue-800 mb-1.5 block">Pincode *</label>
-        <input
-          value={pincode}
-          onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          placeholder="6-digit pincode"
-          maxLength={6}
-          className="w-full border border-blue-200 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
-        />
-      </div>
-
       {/* Location */}
       <div className={`rounded-2xl border-2 px-4 py-3 flex items-center gap-3 transition-all ${
         locationStatus === 'granted'
@@ -328,7 +335,9 @@ export default function Step2({ onNext, onBack }: Props) {
           </p>
           <p className="text-[10px] text-gray-400 mt-0.5 truncate">
             {locationStatus === 'granted' && location
-              ? `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
+              ? pincode
+                ? `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)} · Pincode ${pincode}`
+                : `${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)} · Pincode not detected`
               : locationStatus === 'requesting'
               ? 'Please allow location in your browser'
               : 'Your application may take longer to process'}

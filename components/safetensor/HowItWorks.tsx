@@ -38,7 +38,7 @@ const steps = [
     bullets: ['Direct bank transfer to your account', 'Instant disbursal on approval'],
     stats: [
       { value: 'Instant', label: 'Disbursal' },
-      { value: '₹5L', label: 'Max Amount' },
+      { value: '₹1L', label: 'Max Amount' },
       { value: '0 visit', label: 'Branch Visits' },
     ],
   },

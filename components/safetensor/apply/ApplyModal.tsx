@@ -6,7 +6,7 @@ import Step2, { Step2Data } from './Step2';
 import Step3, { Step3Data } from './Step3';
 import Step4, { Step4Data } from './Step4';
 import SuccessScreen from './SuccessScreen';
-import { updateEmployeeDetails } from '@/lib/safetensor/mockApis';
+import { updateEmployeeDetails, updateEmails } from '@/lib/safetensor/mockApis';
 
 interface Props {
   isOpen: boolean;
@@ -40,21 +40,36 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  async function handleStep2Next(data: Step2Data) {
+    setStep2(data);
+    setSavingDetails(true);
+    setSaveError('');
+    try {
+      const res = await updateEmployeeDetails({
+        employement_company_name: data.company,
+        prev_salary_date: data.salaryDate,
+        monthly_salary: Number(data.monthlySalary),
+        pincode: data.pincode,
+        location: data.location,
+      });
+      if (!res.success) {
+        setSaveError(res.message || 'Failed to save your details. Please try again.');
+        return;
+      }
+      setStep(3);
+    } catch {
+      setSaveError('Something went wrong. Please check your connection and try again.');
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
   async function handleStep3Next(data: Step3Data) {
     setStep3(data);
     setSavingDetails(true);
     setSaveError('');
     try {
-      const res = await updateEmployeeDetails({
-        user_id: step1!.userId,
-        employement_company_name: step2!.company,
-        prev_salary_date: step2!.salaryDate,
-        monthly_salary: Number(step2!.monthlySalary),
-        pincode: step2!.pincode,
-        personal_email: data.personalEmail,
-        work_email: data.workEmail,
-        location: step2!.location,
-      });
+      const res = await updateEmails(data.personalEmail, data.workEmail);
       if (!res.success) {
         setSaveError(res.message || 'Failed to save your details. Please try again.');
         return;
@@ -182,7 +197,19 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
           ) : step === 1 ? (
             <Step1 onNext={(d) => { setStep1(d); setStep(2); }} />
           ) : step === 2 ? (
-            <Step2 onNext={(d) => { setStep2(d); setStep(3); setSaveError(''); }} onBack={() => setStep(1)} />
+            <>
+              {saveError && (
+                <div className="sticky top-0 z-10 -mx-1 mb-4 pt-2">
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-xs font-medium">
+                    <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    {saveError}
+                  </div>
+                </div>
+              )}
+              <Step2 onNext={handleStep2Next} onBack={() => { setStep(1); setSaveError(''); }} />
+            </>
           ) : step === 3 ? (
             <>
               {saveError && (

@@ -2,7 +2,8 @@
 
 import { useState, useRef } from 'react';
 import Toast from '../Toast';
-import { extractPAN, sendOTP, verifyOTP, VerifyOTPResponse } from '@/lib/safetensor/mockApis';
+
+import { extractPAN, sendOTP, verifyOTP, fetchUAN, VerifyOTPResponse } from '@/lib/safetensor/mockApis';
 
 export interface Step1Data {
   pan: string;
@@ -113,7 +114,7 @@ export default function Step1({ onNext }: Props) {
     }
     setSending(true);
     try {
-      const res = await sendOTP(mobile);
+      const res = await sendOTP(mobile, pan, employment);
       if (!res.success) {
         showToast(res.message ?? 'Failed to send OTP. Please try again.');
         return;
@@ -137,6 +138,11 @@ export default function Step1({ onNext }: Props) {
       const res = await verifyOTP({ phone: mobile, otp, pan_number: pan, account_type: employment });
       if (!res.success || !res.data) {
         showToast(res.message ?? 'OTP verification failed. Please try again.');
+        return;
+      }
+      const uanRes = await fetchUAN();
+      if (!uanRes.success || !uanRes.data) {
+        showToast(uanRes.message || 'No UAN record found for this PAN. You cannot proceed with this application.');
         return;
       }
       setVerifiedUser(res.data);

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Toast from '../Toast';
-import { mockSendEmailOTP, mockVerifyEmailOTP } from '@/lib/safetensor/mockApis';
+import { sendEmailOTP, verifyEmailOTP, fetchCRIF, CRIFResponse } from '@/lib/safetensor/mockApis';
 
 export interface Step3Data {
   personalEmail: string;
@@ -39,8 +39,11 @@ function EmailField({ label, value, onChange, verified, onVerified, disabled }: 
     setFieldError('');
     setSending(true);
     try {
-      await mockSendEmailOTP(value);
+      const res = await sendEmailOTP(value);
+      if (!res.success) { setFieldError(res.message || 'Failed to send OTP. Please try again.'); return; }
       setOtpSent(true);
+    } catch {
+      setFieldError('Failed to send OTP. Please check your connection.');
     } finally {
       setSending(false);
     }
@@ -51,9 +54,11 @@ function EmailField({ label, value, onChange, verified, onVerified, disabled }: 
     setFieldError('');
     setVerifying(true);
     try {
-      const res = await mockVerifyEmailOTP(value, otp);
+      const res = await verifyEmailOTP(value, otp);
       if (!res.success) { setFieldError(res.message ?? 'Invalid OTP'); return; }
       onVerified();
+    } catch {
+      setFieldError('Verification failed. Please check your connection.');
     } finally {
       setVerifying(false);
     }
@@ -147,12 +152,29 @@ function EmailField({ label, value, onChange, verified, onVerified, disabled }: 
 export default function Step3({ onNext, onBack }: Props) {
   const [personalEmail, setPersonalEmail] = useState('');
   const [workEmail, setWorkEmail] = useState('');
-  const [personalVerified, setPersonalVerified] = useState(false);
   const [workVerified, setWorkVerified] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
+  const isPersonalEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail);
+
+  const [crifLoading, setCrifLoading] = useState(false);
+  const [crifResult, setCrifResult] = useState<CRIFResponse | null>(null);
+
+  async function handleWorkEmailVerified() {
+    setWorkVerified(true);
+    setCrifLoading(true);
+    try {
+      const res = await fetchCRIF();
+      setCrifResult(res);
+    } catch {
+      setCrifResult({ success: false, message: 'Unable to fetch CRIF report.', data: null, errors: null, timestamp: new Date().toISOString() });
+    } finally {
+      setCrifLoading(false);
+    }
+  }
+
   function handleContinue() {
-    if (!personalVerified) { setToast({ message: 'Please verify your personal email', type: 'error' }); return; }
+    if (!isPersonalEmailValid) { setToast({ message: 'Please enter a valid personal email', type: 'error' }); return; }
     if (!workVerified) { setToast({ message: 'Please verify your work email', type: 'error' }); return; }
     if (personalEmail.toLowerCase() === workEmail.toLowerCase()) {
       setToast({ message: 'Personal email and work email cannot be the same', type: 'error' }); return;
@@ -174,25 +196,60 @@ export default function Step3({ onNext, onBack }: Props) {
       )}
 
       <p className="text-xs text-gray-400 leading-relaxed">
-        We need to verify both your personal and work email addresses. These must be different.
+        Please enter your personal email, and verify your work email via OTP. These must be different.
       </p>
 
-      <EmailField
-        label="Personal Email"
-        value={personalEmail}
-        onChange={(v) => { setPersonalEmail(v); setPersonalVerified(false); }}
-        verified={personalVerified}
-        onVerified={() => setPersonalVerified(true)}
-      />
+      <div className="rounded-2xl border-2 border-blue-100 bg-white p-4">
+        <label className="text-xs font-semibold text-blue-800">Personal Email *</label>
+        <input
+          type="email"
+          value={personalEmail}
+          onChange={(e) => setPersonalEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="mt-2 w-full border border-blue-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+        />
+        {personalEmail && !isPersonalEmailValid && (
+          <p className="text-xs text-red-500 font-medium mt-1.5">Please enter a valid email address</p>
+        )}
+      </div>
 
       <EmailField
         label="Work Email"
         value={workEmail}
-        onChange={(v) => { setWorkEmail(v); setWorkVerified(false); }}
+        onChange={(v) => { setWorkEmail(v); setWorkVerified(false); setCrifResult(null); }}
         verified={workVerified}
-        onVerified={() => setWorkVerified(true)}
-        disabled={!personalVerified}
+        onVerified={handleWorkEmailVerified}
+        disabled={!isPersonalEmailValid}
       />
+
+      {crifLoading && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-600 rounded-xl px-4 py-2.5 text-xs font-medium">
+          <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+          </svg>
+          Fetching your CRIF report…
+        </div>
+      )}
+
+      {crifResult && !crifLoading && (
+        <div className={`rounded-2xl border-2 p-4 ${crifResult.success ? 'border-green-300 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+          <p className={`text-xs font-bold ${crifResult.success ? 'text-green-800' : 'text-red-700'}`}>
+            {crifResult.success ? 'CRIF Report Fetched' : 'CRIF Fetch Failed'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">{crifResult.message}</p>
+          {crifResult.data && (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-3 mt-3 border-t border-green-100">
+              {Object.entries(crifResult.data).map(([label, value]) => (
+                <div key={label}>
+                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">{label}</p>
+                  <p className="text-xs font-semibold text-gray-700 mt-0.5">{String(value ?? '—')}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {sameEmailWarning && (
         <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-600 rounded-xl px-4 py-2.5 text-xs font-medium">
@@ -214,7 +271,7 @@ export default function Step3({ onNext, onBack }: Props) {
         <button
           type="button"
           onClick={handleContinue}
-          disabled={!personalVerified || !workVerified || !!sameEmailWarning}
+          disabled={!isPersonalEmailValid || !workVerified || !!sameEmailWarning}
           className="flex-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-colors text-sm"
         >
           Continue →
