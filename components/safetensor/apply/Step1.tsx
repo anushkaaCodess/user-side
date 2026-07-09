@@ -140,11 +140,8 @@ export default function Step1({ onNext }: Props) {
         showToast(res.message ?? 'OTP verification failed. Please try again.');
         return;
       }
-      const uanRes = await fetchUAN();
-      if (!uanRes.success || !uanRes.data) {
-        showToast(uanRes.message || 'No UAN record found for this PAN. You cannot proceed with this application.');
-        return;
-      }
+      // No UAN record is not fatal — the user can still proceed with the application.
+      await fetchUAN();
       setVerifiedUser(res.data);
     } catch {
       showToast('Verification failed. Please check your connection.');

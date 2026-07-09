@@ -85,38 +85,6 @@ export async function verifyOTP(payload: {
   pan_number: string;
   account_type: 'salaried' | 'self_employed';
 }): Promise<VerifyOTPResponse> {
-  // No SMS service available right now — bypass real verification regardless of DEV_BYPASS.
-  if (true) {
-    await delay(1000);
-    return {
-      success: true,
-      message: 'OTP verified successfully',
-      data: {
-        id: 'dev-user-id-001',
-        company_id: 'dev-company-id',
-        phone: payload.phone,
-        full_name: 'DEMO USER',
-        pan_number: payload.pan_number,
-        father_name: 'DEMO FATHER',
-        gender: 'Male',
-        date_of_birth: '1998-06-15T00:00:00.000Z',
-        masked_aadhaar_number: '12XXXXXXXX34',
-        personal_email: null,
-        official_email: null,
-        employement_company_name: null,
-        prev_salary_date: null,
-        monthly_salary: null,
-        pincode: null,
-        location: null,
-        uan_number: '100252570498',
-        uan_establishment_name: 'DEMO ESTABLISHMENT',
-        uan_date_of_joining: '2020-01-01',
-        uan_date_of_exit: null,
-      },
-      errors: null,
-      timestamp: new Date().toISOString(),
-    };
-  }
   const res = await fetch('/api/auth/verify-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

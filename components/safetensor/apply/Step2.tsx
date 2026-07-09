@@ -158,6 +158,16 @@ function SalaryDateCalendar({ selected, onChange }: CalendarProps) {
 
 type LocationStatus = 'requesting' | 'granted' | 'denied' | 'unavailable';
 
+/** BigDataCloud often returns an empty postcode for India; fall back to Nominatim, which is more reliable here. */
+async function reverseGeocodeViaNominatim(latitude: number, longitude: number): Promise<string> {
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return typeof data?.address?.postcode === 'string' ? data.address.postcode : '';
+}
+
 /** Free, no-key, CORS-enabled reverse geocoder — used to derive the pincode from GPS coordinates. */
 async function reverseGeocodePincode(latitude: number, longitude: number): Promise<string> {
   const res = await fetch(
@@ -165,7 +175,9 @@ async function reverseGeocodePincode(latitude: number, longitude: number): Promi
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
-  return typeof data.postcode === 'string' ? data.postcode : '';
+  const postcode = typeof data.postcode === 'string' ? data.postcode : '';
+  if (postcode) return postcode;
+  return reverseGeocodeViaNominatim(latitude, longitude);
 }
 
 export default function Step2({ onNext, onBack }: Props) {

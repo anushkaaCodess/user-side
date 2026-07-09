@@ -43,14 +43,22 @@ export async function proxyToUpstream(
       : [];
 
   for (const raw of setCookies) {
-    res.headers.append('Set-Cookie', relaxCookieForLocalDev(raw));
+    res.headers.append('Set-Cookie', adjustCookieForEnv(raw));
   }
 
   return res;
 }
 
-function relaxCookieForLocalDev(rawCookie: string) {
-  if (process.env.NODE_ENV === 'production') return rawCookie;
-  // Browsers drop `Secure` + `SameSite=None` cookies over plain http://localhost.
-  return rawCookie.replace(/;\s*SameSite=None/i, '; SameSite=Lax').replace(/;\s*Secure/i, '');
+function adjustCookieForEnv(rawCookie: string) {
+  if (process.env.NODE_ENV !== 'production') {
+    // Browsers drop `Secure` + `SameSite=None` cookies over plain http://localhost.
+    return rawCookie.replace(/;\s*SameSite=None/i, '; SameSite=Lax').replace(/;\s*Secure/i, '');
+  }
+  // Browsers silently drop `SameSite=None` cookies missing `Secure`. The upstream
+  // only sets `Secure` when its own NODE_ENV is 'production', which it may not be
+  // even though we're serving over HTTPS — so enforce it here regardless.
+  if (/;\s*SameSite=None/i.test(rawCookie) && !/;\s*Secure/i.test(rawCookie)) {
+    return `${rawCookie}; Secure`;
+  }
+  return rawCookie;
 }
