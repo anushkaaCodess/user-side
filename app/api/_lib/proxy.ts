@@ -6,7 +6,6 @@ const UPSTREAM_BASE = process.env.UPSTREAM_BASE_URL ?? 'https://common-server-1.
  * verify-otp sets an httpOnly `accessToken` cookie (Secure; SameSite=None) that gates
  * employee/details, update/emails, fetch/uan, fetch/crif and the email-OTP endpoints.
  * This proxy forwards the browser's cookie upstream, and forwards any upstream
- * Set-Cookie back to the browser (relaxed for non-HTTPS local dev).
  */
 export async function proxyToUpstream(
   req: NextRequest,
