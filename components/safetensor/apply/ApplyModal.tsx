@@ -11,20 +11,21 @@ import { updateEmployeeDetails, updateEmails } from '@/lib/safetensor/mockApis';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  resumeAtAADone?: boolean;
 }
 
 const STEPS = [
   { n: 1, label: 'Identity' },
   { n: 2, label: 'Employment' },
   { n: 3, label: 'Emails' },
-  { n: 4, label: 'Bank' },
+  { n: 4, label: 'AA' },
 ];
 
 function genRefId() {
   return 'ST-' + Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-export default function ApplyModal({ isOpen, onClose }: Props) {
+export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
   const [step, setStep] = useState(1);
   const [step1, setStep1] = useState<Step1Data | null>(null);
   const [step2, setStep2] = useState<Step2Data | null>(null);
@@ -39,6 +40,10 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && resumeAtAADone) setStep(4);
+  }, [isOpen, resumeAtAADone]);
 
   async function handleStep2Next(data: Step2Data) {
     setStep2(data);
@@ -104,7 +109,7 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
     1: 'Verify Identity',
     2: 'Employment Details',
     3: 'Email Verification',
-    4: 'Salary Bank',
+    4: 'Account Aggregator',
   };
 
   return (
@@ -228,6 +233,7 @@ export default function ApplyModal({ isOpen, onClose }: Props) {
             <Step4
               onNext={(d) => { setStep4(d); setDone(true); void step1; void step2; void step3; }}
               onBack={() => setStep(3)}
+              initialAAStage={resumeAtAADone ? 'done' : 'idle'}
             />
           )}
         </div>

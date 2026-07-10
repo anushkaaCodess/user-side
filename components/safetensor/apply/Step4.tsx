@@ -2,60 +2,45 @@
 
 import { useState } from 'react';
 import Toast from '../Toast';
-import { mockOpenAccountAggregator } from '@/lib/safetensor/mockApis';
+import { createAAConsent } from '@/lib/safetensor/mockApis';
 
 export interface Step4Data {
-  bank: string;
   aaConsent: boolean;
 }
 
 interface Props {
   onNext: (data: Step4Data) => void;
   onBack: () => void;
+  initialAAStage?: AAStage;
 }
 
 type ToastState = { message: string; type: 'error' | 'success' | 'info' } | null;
 
-const BANKS = [
-  'State Bank of India',
-  'HDFC Bank',
-  'ICICI Bank',
-  'Axis Bank',
-  'Kotak Mahindra Bank',
-  'Punjab National Bank',
-  'Bank of Baroda',
-  'Canara Bank',
-  'Union Bank of India',
-  'IndusInd Bank',
-  'Yes Bank',
-  'IDFC First Bank',
-  'Federal Bank',
-  'RBL Bank',
-  'Other',
-];
+type AAStage = 'idle' | 'launching' | 'done';
 
-type AAStage = 'idle' | 'loading' | 'consent' | 'done';
-
-export default function Step4({ onNext, onBack }: Props) {
-  const [bank, setBank] = useState('');
-  const [aaStage, setAAStage] = useState<AAStage>('idle');
+export default function Step4({ onNext, onBack, initialAAStage = 'idle' }: Props) {
+  const [aaStage, setAAStage] = useState<AAStage>(initialAAStage);
   const [toast, setToast] = useState<ToastState>(null);
 
   async function handleOpenAA() {
-    if (!bank) { setToast({ message: 'Please select your salary bank first', type: 'error' }); return; }
-    setAAStage('loading');
-    await mockOpenAccountAggregator(bank);
-    setAAStage('consent');
-  }
-
-  function handleGiveConsent() {
-    setAAStage('done');
+    setAAStage('launching');
+    try {
+      const res = await createAAConsent();
+      if (!res.success || !res.data?.url) {
+        setToast({ message: res.message || 'Could not start Account Aggregator. Please try again.', type: 'error' });
+        setAAStage('idle');
+        return;
+      }
+      window.location.href = res.data.url;
+    } catch {
+      setToast({ message: 'Something went wrong. Please check your connection and try again.', type: 'error' });
+      setAAStage('idle');
+    }
   }
 
   function handleContinue() {
-    if (!bank) { setToast({ message: 'Please select your salary bank', type: 'error' }); return; }
     if (aaStage !== 'done') { setToast({ message: 'Please complete the Account Aggregator consent first', type: 'error' }); return; }
-    onNext({ bank, aaConsent: true });
+    onNext({ aaConsent: true });
   }
 
   return (
@@ -65,22 +50,6 @@ export default function Step4({ onNext, onBack }: Props) {
           <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />
         </div>
       )}
-
-      {/* Bank selection */}
-      <div>
-        <label className="text-xs font-semibold text-blue-800 mb-1.5 block">Salary Bank *</label>
-        <select
-          value={bank}
-          onChange={(e) => { setBank(e.target.value); setAAStage('idle'); }}
-          className="w-full border border-blue-200 rounded-xl px-4 py-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 bg-white transition-all appearance-none cursor-pointer"
-        >
-          <option value="">Select your salary bank</option>
-          {BANKS.map((b) => (
-            <option key={b} value={b}>{b}</option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-400 mt-1">Select the bank where your salary is credited</p>
-      </div>
 
       {/* Account Aggregator */}
       <div className="rounded-2xl border-2 border-blue-100 overflow-hidden">
@@ -112,7 +81,7 @@ export default function Step4({ onNext, onBack }: Props) {
             <>
               <p className="text-sm text-gray-500 leading-relaxed mb-4">
                 We use the Account Aggregator framework to securely fetch your bank statements for income verification.
-                Your consent is required and can be revoked anytime.
+                You&apos;ll choose your bank and confirm consent on the next screen. Your consent is required and can be revoked anytime.
               </p>
               <ul className="space-y-2 mb-5">
                 {[
@@ -133,7 +102,6 @@ export default function Step4({ onNext, onBack }: Props) {
               </ul>
               <button
                 onClick={handleOpenAA}
-                disabled={!bank}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors text-sm"
               >
                 Open Account Aggregator →
@@ -141,46 +109,12 @@ export default function Step4({ onNext, onBack }: Props) {
             </>
           )}
 
-          {aaStage === 'loading' && (
+          {aaStage === 'launching' && (
             <div className="flex flex-col items-center gap-4 py-6">
               <div className="w-14 h-14 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
               <div className="text-center">
-                <p className="text-sm font-semibold text-blue-900">Connecting to Account Aggregator…</p>
-                <p className="text-xs text-gray-400 mt-1">Fetching your bank details securely</p>
-              </div>
-            </div>
-          )}
-
-          {aaStage === 'consent' && (
-            <div className="space-y-4">
-              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                <p className="text-xs font-semibold text-blue-800 mb-2">Data Sharing Request</p>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  <strong>SafeTensor</strong> is requesting access to your{' '}
-                  <strong>{bank}</strong> account statements for the last 6 months to verify income.
-                </p>
-                <div className="mt-3 space-y-1.5">
-                  {['Salary credits', 'Bank balance', 'Account holder name'].map((d) => (
-                    <div key={d} className="flex items-center gap-2 text-xs text-gray-500">
-                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                      {d}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setAAStage('idle')}
-                  className="border-2 border-red-200 text-red-500 hover:bg-red-50 font-semibold py-3 rounded-xl transition-colors text-sm"
-                >
-                  Deny
-                </button>
-                <button
-                  onClick={handleGiveConsent}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors text-sm"
-                >
-                  Give Consent ✓
-                </button>
+                <p className="text-sm font-semibold text-blue-900">Redirecting to Account Aggregator…</p>
+                <p className="text-xs text-gray-400 mt-1">You&apos;ll come back here once you&apos;re done</p>
               </div>
             </div>
           )}
@@ -194,7 +128,7 @@ export default function Step4({ onNext, onBack }: Props) {
               </div>
               <div className="text-center">
                 <p className="text-sm font-bold text-green-700">Bank Data Fetched Successfully</p>
-                <p className="text-xs text-gray-400 mt-1">Your {bank} account data has been securely shared</p>
+                <p className="text-xs text-gray-400 mt-1">Your account data has been securely shared</p>
               </div>
             </div>
           )}

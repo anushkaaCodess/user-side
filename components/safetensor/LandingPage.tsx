@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Nav from './Nav';
 import Hero from './Hero';
 import HowItWorks from './HowItWorks';
@@ -13,6 +13,23 @@ import ApplyModal from './apply/ApplyModal';
 
 export default function SafeTensorLanding() {
   const [applyOpen, setApplyOpen] = useState(false);
+  const [resumeAtAADone, setResumeAtAADone] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('aa') === 'done') {
+      setResumeAtAADone(true);
+      setApplyOpen(true);
+      params.delete('aa');
+      const query = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : ''));
+    }
+  }, []);
+
+  function closeApply() {
+    setApplyOpen(false);
+    setResumeAtAADone(false);
+  }
 
   return (
     <>
@@ -26,7 +43,7 @@ export default function SafeTensorLanding() {
         <Support />
       </main>
       <Footer />
-      <ApplyModal isOpen={applyOpen} onClose={() => setApplyOpen(false)} />
+      <ApplyModal isOpen={applyOpen} onClose={closeApply} resumeAtAADone={resumeAtAADone} />
     </>
   );
 }

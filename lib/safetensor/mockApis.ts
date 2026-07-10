@@ -122,6 +122,7 @@ export async function updateEmails(
 ): Promise<{ success: boolean; message: string }> {
   if (DEV_BYPASS) {
     await delay(800);
+    
     return { success: true, message: 'User emails updated successfully' };
   }
   const res = await fetch('/api/user/update-emails', {
@@ -203,13 +204,21 @@ export async function verifyEmailOTP(
   return res.json();
 }
 
-/** Mock Account Aggregator — no real API given yet. */
+export interface SetuConsentResponse {
+  success: boolean;
+  message: string;
+  data: { url: string } | null;
+  errors: string[] | null;
+  timestamp: string;
+}
 
-/** Open Account Aggregator consent flow */
-export async function mockOpenAccountAggregator(
-  bank: string
-): Promise<{ consentGiven: boolean }> {
-  await delay(2500);
-  console.log('[MOCK] AA consent for bank', bank);
-  return { consentGiven: true };
+/** Creates a Setu Account Aggregator consent request; caller should redirect the browser to data.url. */
+export async function createAAConsent(): Promise<SetuConsentResponse> {
+  const res = await fetch('/api/user/setu-consent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
 }
