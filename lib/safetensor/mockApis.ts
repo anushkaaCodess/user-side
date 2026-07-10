@@ -66,10 +66,6 @@ export async function sendOTP(
   pan_number: string,
   account_type: 'salaried' | 'self_employed'
 ): Promise<{ success: boolean; message: string }> {
-  if (DEV_BYPASS) {
-    await delay(800);
-    return { success: true, message: 'OTP sent successfully' };
-  }
   const res = await fetch('/api/auth/send-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
