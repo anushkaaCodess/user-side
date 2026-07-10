@@ -10,7 +10,7 @@ const UPSTREAM_BASE = process.env.UPSTREAM_BASE_URL ?? 'https://common-server-1.
 export async function proxyToUpstream(
   req: NextRequest,
   upstreamPath: string,
-  opts?: { method?: 'GET' | 'POST' }
+  opts?: { method?: 'GET' | 'POST' | 'PUT' }
 ) {
   const method = opts?.method ?? 'POST';
 
@@ -21,7 +21,7 @@ export async function proxyToUpstream(
   if (cookie) headers['cookie'] = cookie;
 
   let body: string | undefined;
-  if (method === 'POST') {
+  if (method === 'POST' || method === 'PUT') {
     headers['Content-Type'] = 'application/json';
     body = JSON.stringify(await req.json());
   }
