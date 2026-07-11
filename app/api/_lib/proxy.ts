@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const UPSTREAM_BASE = process.env.UPSTREAM_BASE_URL ?? 'https://common-server-1.onrender.com';
+const UPSTREAM_BASE = process.env.UPSTREAM_BASE_URL ?? 'http://35.154.33.187:4000';
 
 /**
  * verify-otp sets an httpOnly `accessToken` cookie (Secure; SameSite=None) that gates
