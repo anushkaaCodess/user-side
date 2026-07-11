@@ -29,8 +29,21 @@ export async function proxyToUpstream(
   const upstream = await fetch(`${UPSTREAM_BASE}${upstreamPath}`, {
     method,
     headers,
+    redirect: 'manual',
     ...(body !== undefined ? { body } : {}),
   });
+
+
+  if (upstream.status >= 300 && upstream.status < 400) {
+    const location = upstream.headers.get('location');
+    return NextResponse.json({
+      success: true,
+      message: 'Redirect',
+      data: { url: location },
+      errors: null,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   const data = await upstream.json();
   const res = NextResponse.json(data, { status: upstream.status });
