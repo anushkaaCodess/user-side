@@ -233,7 +233,7 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
             <Step4
               onNext={(d) => { setStep4(d); setDone(true); void step1; void step2; void step3; }}
               onBack={() => setStep(3)}
-              initialAAStage={resumeAtAADone ? 'done' : 'idle'}
+              resumeAtAADone={resumeAtAADone}
             />
           )}
         </div>

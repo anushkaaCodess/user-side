@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Toast from '../Toast';
-import { createAAConsent } from '@/lib/safetensor/mockApis';
+import { createAAConsent, processAAConsent } from '@/lib/safetensor/mockApis';
 
 export interface Step4Data {
   aaConsent: boolean;
@@ -11,16 +11,41 @@ export interface Step4Data {
 interface Props {
   onNext: (data: Step4Data) => void;
   onBack: () => void;
-  initialAAStage?: AAStage;
+  /** True when we've just been redirected back from Setu with ?aa=done. */
+  resumeAtAADone?: boolean;
 }
 
 type ToastState = { message: string; type: 'error' | 'success' | 'info' } | null;
 
-type AAStage = 'idle' | 'launching' | 'done';
+type AAStage = 'idle' | 'launching' | 'verifying' | 'done';
 
-export default function Step4({ onNext, onBack, initialAAStage = 'idle' }: Props) {
-  const [aaStage, setAAStage] = useState<AAStage>(initialAAStage);
+export default function Step4({ onNext, onBack, resumeAtAADone = false }: Props) {
+  const [aaStage, setAAStage] = useState<AAStage>(resumeAtAADone ? 'verifying' : 'idle');
   const [toast, setToast] = useState<ToastState>(null);
+
+  useEffect(() => {
+    if (!resumeAtAADone) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await processAAConsent();
+        if (cancelled) return;
+        if (!res.success) {
+          setToast({ message: res.message || 'Could not verify Account Aggregator consent. Please try again.', type: 'error' });
+          setAAStage('idle');
+          return;
+        }
+        setAAStage('done');
+      } catch {
+        if (cancelled) return;
+        setToast({ message: 'Something went wrong while verifying your consent. Please try again.', type: 'error' });
+        setAAStage('idle');
+      }
+    })();
+    return () => { cancelled = true; };
+    // Only run once, when we resume from the Setu redirect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeAtAADone]);
 
   async function handleOpenAA() {
     setAAStage('launching');
@@ -109,12 +134,16 @@ export default function Step4({ onNext, onBack, initialAAStage = 'idle' }: Props
             </>
           )}
 
-          {aaStage === 'launching' && (
+          {(aaStage === 'launching' || aaStage === 'verifying') && (
             <div className="flex flex-col items-center gap-4 py-6">
               <div className="w-14 h-14 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
               <div className="text-center">
-                <p className="text-sm font-semibold text-blue-900">Redirecting to Account Aggregator…</p>
-                <p className="text-xs text-gray-400 mt-1">You&apos;ll come back here once you&apos;re done</p>
+                <p className="text-sm font-semibold text-blue-900">
+                  {aaStage === 'launching' ? 'Redirecting to Account Aggregator…' : 'Verifying your consent…'}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {aaStage === 'launching' ? "You'll come back here once you're done" : 'This will only take a moment'}
+                </p>
               </div>
             </div>
           )}

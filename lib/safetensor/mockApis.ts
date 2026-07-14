@@ -222,3 +222,25 @@ export async function createAAConsent(): Promise<SetuConsentResponse> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+export interface ProcessAAConsentResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+  errors: string[] | null;
+  timestamp: string;
+}
+
+/**
+ * Confirms the Setu AA consent after the browser redirects back with `?aa=done`.
+ * Rejects (success: false) if the consent isn't active yet or more than one
+ * account was linked — the caller must not treat `aa=done` alone as success.
+ */
+export async function processAAConsent(): Promise<ProcessAAConsentResponse> {
+  const res = await fetch('/api/user/process-setu-consent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  return res.json();
+}
