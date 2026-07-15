@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// This is the base URL of the upstream API that this proxy forwards requests to.
+
 const UPSTREAM_BASE = process.env.UPSTREAM_BASE_URL ?? 'http://35.154.33.187:4000';
 
 /**
