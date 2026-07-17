@@ -165,6 +165,7 @@ async function reverseGeocodeViaNominatim(latitude: number, longitude: number): 
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
+  console.log('[reverseGeocodeViaNominatim] response:', data);
   return typeof data?.address?.postcode === 'string' ? data.address.postcode : '';
 }
 
@@ -175,6 +176,7 @@ async function reverseGeocodePincode(latitude: number, longitude: number): Promi
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
+  console.log('[reverseGeocodePincode] response:', data);
   const postcode = typeof data.postcode === 'string' ? data.postcode : '';
   if (postcode) return postcode;
   return reverseGeocodeViaNominatim(latitude, longitude);
