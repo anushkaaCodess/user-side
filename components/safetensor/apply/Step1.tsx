@@ -140,7 +140,7 @@ export default function Step1({ onNext }: Props) {
         showToast(res.message ?? 'OTP verification failed. Please try again.');
         return;
       }
-      // No UAN record is not fatal, the user can still proceed with the application.
+      // No UAN record is not fatal — the user can still proceed with the application.
       await fetchUAN();
       setVerifiedUser(res.data);
     } catch {
