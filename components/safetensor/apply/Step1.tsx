@@ -12,6 +12,7 @@ export interface Step1Data {
   mobile: string;
   employment: 'salaried' | 'self_employed';
   userName: string;
+  loanId?: string;
 }
 
 interface Props {
@@ -159,6 +160,7 @@ export default function Step1({ onNext }: Props) {
       mobile,
       employment,
       userName: verifiedUser.full_name,
+      loanId: verifiedUser.loan?.id,
     });
   }
 
@@ -167,19 +169,19 @@ export default function Step1({ onNext }: Props) {
   // ── Identity confirmed state ──────────────────────────────────────────────
   if (verifiedUser) {
     return (
-      <div className="pt-2 pb-4 space-y-4">
-        <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shrink-0">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-sm font-bold text-green-800">Identity Verified</p>
-          </div>
+      // <div className="pt-2 pb-4 space-y-4">
+      //   <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-5 space-y-3">
+      //     <div className="flex items-center gap-2">
+      //       <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shrink-0">
+      //         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      //           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+      //         </svg>
+      //       </div>
+      //       <p className="text-sm font-bold text-green-800">Identity Verified</p>
+      //     </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
-            {[
+            {/* {[
               { label: 'Full Name', value: verifiedUser.full_name },
               { label: 'PAN', value: verifiedUser.pan_number },
               { label: 'Date of Birth', value: formatDOB(verifiedUser.date_of_birth) },
@@ -193,11 +195,11 @@ export default function Step1({ onNext }: Props) {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
-        <p className="text-xs text-gray-400 text-center">
+        {/* <p className="text-xs text-gray-400 text-center">
           Please confirm this is your identity before proceeding.
-        </p>
+        </p> */}
 
         <button
           onClick={handleConfirm}

@@ -19,6 +19,7 @@ const steps = [
   {
     n: 2,
     title: 'Quick Verification',
+    subTitle: 'Verify your identity, income, and bank details securely using trusted third-party APIs.',
     short: 'We verify your identity, income, and bank details securely using trusted third-party APIs.',
     detail:
       'Our intelligent system verifies your PAN, employment, and bank account details instantly using RBI-approved data sources, with zero manual paperwork.',
@@ -124,6 +125,13 @@ export default function HowItWorks() {
             {/* Nav buttons */}
             <div className="flex gap-3 mt-8">
               <button
+                onClick={() => setActive(0)}
+                disabled={active === 0}
+                className="px-4 py-2 rounded-xl text-sm font-semibold border border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                ⏮ First
+              </button>
+              <button
                 onClick={() => setActive((a) => Math.max(0, a - 1))}
                 disabled={active === 0}
                 className="px-4 py-2 rounded-xl text-sm font-semibold border border-blue-200 text-blue-600 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -137,6 +145,14 @@ export default function HowItWorks() {
               >
                 Next →
               </button>
+              <button
+                onClick={() => setActive(steps.length - 1)}
+                disabled={active === steps.length - 1}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                Last ⏭
+           </button>
+              
             </div>
           </div>
 
@@ -148,6 +164,7 @@ export default function HowItWorks() {
                 <p className="text-xs text-gray-400 font-medium leading-tight">{s.label}</p>
               </div>
             ))}
+            
             {/* Visual step indicator */}
             <div className="col-span-3 bg-white border border-blue-100 rounded-2xl p-6 shadow-sm">
               <p className="text-xs text-gray-400 font-medium mb-4 uppercase tracking-wide">Your progress</p>

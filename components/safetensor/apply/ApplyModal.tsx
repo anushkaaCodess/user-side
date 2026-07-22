@@ -5,8 +5,9 @@ import Step1, { Step1Data } from './Step1';
 import Step2, { Step2Data } from './Step2';
 import Step3, { Step3Data } from './Step3';
 import Step4, { Step4Data } from './Step4';
+import Step5, { Step5Data } from './Step5';
 import SuccessScreen from './SuccessScreen';
-import { updateEmployeeDetails, updateEmails } from '@/lib/safetensor/mockApis';
+import { updateEmployeeDetails } from '@/lib/safetensor/mockApis';
 
 interface Props {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const STEPS = [
   { n: 2, label: 'Employment' },
   { n: 3, label: 'Emails' },
   { n: 4, label: 'AA' },
+  { n: 5, label: 'Docs' },
 ];
 
 function genRefId() {
@@ -32,6 +34,7 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
   const [step3, setStep3] = useState<Step3Data | null>(null);
   const [step4, setStep4] = useState<Step4Data | null>(null);
   const [done, setDone] = useState(false);
+  const loanId = step1?.loanId;
   const [refId] = useState(genRefId);
   const [savingDetails, setSavingDetails] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -45,36 +48,28 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
     if (isOpen && resumeAtAADone) setStep(4);
   }, [isOpen, resumeAtAADone]);
 
-  async function handleStep2Next(data: Step2Data) {
+  function handleStep2Next(data: Step2Data) {
     setStep2(data);
+    setStep(3);
+  }
+
+  /** Upstream validates employment + email fields together in one call — see updateEmployeeDetails. */
+  async function handleStep3Next(data: Step3Data) {
+    setStep3(data);
+    if (!step2) return;
     setSavingDetails(true);
     setSaveError('');
     try {
       const res = await updateEmployeeDetails({
-        employement_company_name: data.company,
-        prev_salary_date: data.salaryDate,
-        monthly_salary: Number(data.monthlySalary),
-        pincode: data.pincode,
-        location: data.location,
+        employement_company_name: step2.company,
+        prev_salary_date: step2.salaryDate,
+        monthly_salary: Number(step2.monthlySalary),
+        pincode: step2.pincode,
+        location: step2.location,
+        personal_email: data.personalEmail,
+        work_email: data.workEmail,
+        loan_id: loanId,
       });
-      if (!res.success) {
-        setSaveError(res.message || 'Failed to save your details. Please try again.');
-        return;
-      }
-      setStep(3);
-    } catch {
-      setSaveError('Something went wrong. Please check your connection and try again.');
-    } finally {
-      setSavingDetails(false);
-    }
-  }
-
-  async function handleStep3Next(data: Step3Data) {
-    setStep3(data);
-    setSavingDetails(true);
-    setSaveError('');
-    try {
-      const res = await updateEmails(data.personalEmail, data.workEmail);
       if (!res.success) {
         setSaveError(res.message || 'Failed to save your details. Please try again.');
         return;
@@ -110,6 +105,7 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
     2: 'Employment Details',
     3: 'Email Verification',
     4: 'Account Aggregator',
+    5: 'Upload Documents',
   };
 
   return (
@@ -229,11 +225,18 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
               )}
               <Step3 onNext={handleStep3Next} onBack={() => { setStep(2); setSaveError(''); }} />
             </>
-          ) : (
+          ) : step === 4 ? (
             <Step4
-              onNext={(d) => { setStep4(d); setDone(true); void step1; void step2; void step3; }}
+              loanId={loanId}
+              onNext={(d) => { setStep4(d); setStep(5); void step1; void step2; void step3; }}
               onBack={() => setStep(3)}
               resumeAtAADone={resumeAtAADone}
+            />
+          ) : (
+            <Step5
+              loanId={loanId}
+              onNext={(d: Step5Data) => { setDone(true); void d; void step4; }}
+              onBack={() => setStep(4)}
             />
           )}
         </div>

@@ -9,6 +9,7 @@ export interface Step4Data {
 }
 
 interface Props {
+  loanId?: string;
   onNext: (data: Step4Data) => void;
   onBack: () => void;
   /** True when we've just been redirected back from Setu with ?aa=done. */
@@ -19,7 +20,7 @@ type ToastState = { message: string; type: 'error' | 'success' | 'info' } | null
 
 type AAStage = 'idle' | 'launching' | 'verifying' | 'done';
 
-export default function Step4({ onNext, onBack, resumeAtAADone = false }: Props) {
+export default function Step4({ loanId, onNext, onBack, resumeAtAADone = false }: Props) {
   const [aaStage, setAAStage] = useState<AAStage>(resumeAtAADone ? 'verifying' : 'idle');
   const [toast, setToast] = useState<ToastState>(null);
 
@@ -28,7 +29,7 @@ export default function Step4({ onNext, onBack, resumeAtAADone = false }: Props)
     let cancelled = false;
     (async () => {
       try {
-        const res = await processAAConsent();
+        const res = await processAAConsent(loanId);
         if (cancelled) return;
         if (!res.success) {
           setToast({ message: res.message || 'Could not verify Account Aggregator consent. Please try again.', type: 'error' });

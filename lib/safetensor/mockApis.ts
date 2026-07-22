@@ -56,9 +56,16 @@ export interface VerifyOTPResponse {
     uan_establishment_name: string | null;
     uan_date_of_joining: string | null;
     uan_date_of_exit: string | null;
+    /** Present on the real backend; absent under DEV_BYPASS-era mocks — read defensively. */
+    loan?: Loan | null;
   } | null;
   errors: string[] | null;
   timestamp: string;
+}
+
+export interface Loan {
+  id: string;
+  status: string;
 }
 
 export async function sendOTP(
@@ -96,12 +103,20 @@ function toUpstreamDate(iso: string) {
   return `${d}-${m}-${y}`;
 }
 
+/**
+ * Saves employment + email details in one call — the upstream /employee/details
+ * endpoint validates personal_email, work_email, employment fields and loan_id
+ * together in a single schema; there is no separate emails endpoint.
+ */
 export async function updateEmployeeDetails(payload: {
   employement_company_name: string;
   prev_salary_date: string; // ISO YYYY-MM-DD, converted to DD-MM-YYYY here
   monthly_salary: number;
   pincode: string;
   location: { latitude: number; longitude: number } | null;
+  personal_email: string;
+  work_email: string;
+  loan_id?: string;
 }): Promise<{ success: boolean; message: string }> {
   if (DEV_BYPASS) {
     await delay(1000);
@@ -111,24 +126,6 @@ export async function updateEmployeeDetails(payload: {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, prev_salary_date: toUpstreamDate(payload.prev_salary_date) }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function updateEmails(
-  personal_email: string,
-  work_email: string
-): Promise<{ success: boolean; message: string }> {
-  if (DEV_BYPASS) {
-    await delay(800);
-    
-    return { success: true, message: 'User emails updated successfully' };
-  }
-  const res = await fetch('/api/user/update-emails', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ personal_email, work_email }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
@@ -236,11 +233,48 @@ export interface ProcessAAConsentResponse {
  * Rejects (success: false) if the consent isn't active yet or more than one
  * account was linked — the caller must not treat `aa=done` alone as success.
  */
-export async function processAAConsent(): Promise<ProcessAAConsentResponse> {
+export async function processAAConsent(loan_id?: string): Promise<ProcessAAConsentResponse> {
   const res = await fetch('/api/user/process-setu-consent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify(loan_id ? { loan_id } : {}),
   });
+  return res.json();
+}
+
+export interface UploadDocumentsResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+  errors: string[] | null;
+  timestamp: string;
+}
+
+/** One selected file tagged with the document slot it fills (becomes the multipart fieldname → document_type upstream). */
+export interface DocumentUploadEntry {
+  documentType: string;
+  file: File;
+}
+
+/**
+ * Uploads KYC/loan documents (images or PDFs) to /api/user/add/documents.
+ * Each file's fieldname becomes its `document_type` upstream (see Common-Server
+ * `documentsUpload`), and `loan_id` must be a valid UUID for the user's active loan.
+ */
+export async function uploadDocuments(
+  loan_id: string,
+  entries: DocumentUploadEntry[]
+): Promise<UploadDocumentsResponse> {
+  const formData = new FormData();
+  formData.append('loan_id', loan_id);
+  for (const { documentType, file } of entries) {
+    formData.append(documentType, file, file.name);
+  }
+
+  const res = await fetch('/api/user/add-documents', {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok && res.status !== 400) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

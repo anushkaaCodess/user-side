@@ -64,6 +64,30 @@ export async function proxyToUpstream(
   return res;
 }
 
+/**
+ * Streams a multipart/form-data request straight through to upstream, preserving the
+ * original Content-Type (and its multipart boundary) so files aren't buffered/re-encoded here.
+ */
+export async function proxyMultipartToUpstream(req: NextRequest, upstreamPath: string) {
+  const headers: Record<string, string> = {
+    'x-api-key': process.env.PAN_API_KEY ?? '',
+  };
+  const cookie = req.headers.get('cookie');
+  if (cookie) headers['cookie'] = cookie;
+  const contentType = req.headers.get('content-type');
+  if (contentType) headers['content-type'] = contentType;
+
+  const upstream = await fetch(`${UPSTREAM_BASE}${upstreamPath}`, {
+    method: 'POST',
+    headers,
+    body: req.body,
+    duplex: 'half',
+  } as RequestInit & { duplex: 'half' });
+
+  const data = await upstream.json();
+  return NextResponse.json(data, { status: upstream.status });
+}
+
 function adjustCookieForEnv(rawCookie: string) {
   if (process.env.NODE_ENV !== 'production') {
     // Browsers drop `Secure` + `SameSite=None` cookies over plain http://localhost.
