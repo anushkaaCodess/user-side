@@ -2,5 +2,5 @@ import { NextRequest } from 'next/server';
 import { proxyToUpstream } from '../../_lib/proxy';
 
 export async function POST(req: NextRequest) {
-  return proxyToUpstream(req, '/api/user/process/setu/consent', { method: 'POST' });
+  return proxyToUpstream(req, '/api/user/add/relations');
 }

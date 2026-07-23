@@ -6,6 +6,7 @@ import Step2, { Step2Data } from './Step2';
 import Step3, { Step3Data } from './Step3';
 import Step4, { Step4Data } from './Step4';
 import Step5, { Step5Data } from './Step5';
+import Step6, { Step6Data } from './Step6';
 import SuccessScreen from './SuccessScreen';
 import { updateEmployeeDetails } from '@/lib/safetensor/mockApis';
 
@@ -21,6 +22,7 @@ const STEPS = [
   { n: 3, label: 'Emails' },
   { n: 4, label: 'AA' },
   { n: 5, label: 'Docs' },
+  { n: 6, label: 'References' },
 ];
 
 function genRefId() {
@@ -33,6 +35,7 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
   const [step2, setStep2] = useState<Step2Data | null>(null);
   const [step3, setStep3] = useState<Step3Data | null>(null);
   const [step4, setStep4] = useState<Step4Data | null>(null);
+  const [step5, setStep5] = useState<Step5Data | null>(null);
   const [done, setDone] = useState(false);
   const loanId = step1?.loanId;
   const [refId] = useState(genRefId);
@@ -88,6 +91,7 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
     setStep2(null);
     setStep3(null);
     setStep4(null);
+    setStep5(null);
     setDone(false);
     setSavingDetails(false);
     setSaveError('');
@@ -106,6 +110,7 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
     3: 'Email Verification',
     4: 'Account Aggregator',
     5: 'Upload Documents',
+    6: 'References',
   };
 
   return (
@@ -232,11 +237,16 @@ export default function ApplyModal({ isOpen, onClose, resumeAtAADone }: Props) {
               onBack={() => setStep(3)}
               resumeAtAADone={resumeAtAADone}
             />
-          ) : (
+          ) : step === 5 ? (
             <Step5
               loanId={loanId}
-              onNext={(d: Step5Data) => { setDone(true); void d; void step4; }}
+              onNext={(d: Step5Data) => { setStep5(d); setStep(6); void step4; }}
               onBack={() => setStep(4)}
+            />
+          ) : (
+            <Step6
+              onNext={(d: Step6Data) => { setDone(true); void d; void step5; }}
+              onBack={() => setStep(5)}
             />
           )}
         </div>

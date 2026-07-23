@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Toast from '../Toast';
 import { createAAConsent, processAAConsent } from '@/lib/safetensor/mockApis';
 
+const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_BYPASS === 'true';
+
 export interface Step4Data {
   aaConsent: boolean;
 }
@@ -50,6 +52,10 @@ export default function Step4({ loanId, onNext, onBack, resumeAtAADone = false }
 
   async function handleOpenAA() {
     setAAStage('launching');
+    if (DEV_BYPASS) {
+      setAAStage('done');
+      return;
+    }
     try {
       const res = await createAAConsent();
       if (!res.success || !res.data?.url) {

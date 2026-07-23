@@ -76,20 +76,17 @@ function FileSlot({
   const isImage = file && file.type.startsWith('image/');
 
   return (
-    <div className={`rounded-2xl border-2 p-4 transition-all ${file ? 'border-green-300 bg-green-50' : 'border-blue-100 bg-white'}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <p className="text-xs font-semibold text-blue-800">{slot.label} *</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">{slot.hint}</p>
-        </div>
-        {file && (
-          <span className="flex items-center gap-1 text-xs font-semibold text-green-600 shrink-0">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className={`rounded-2xl border-2 p-3 transition-all ${file ? 'border-green-300 bg-green-50' : 'border-blue-100 bg-white'}`}>
+      <div className="mb-2">
+        <div className="flex items-center justify-between gap-1">
+          <p className="text-xs font-semibold text-blue-800 leading-tight">{slot.label} *</p>
+          {file && (
+            <svg className="w-3.5 h-3.5 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
             </svg>
-            Added
-          </span>
-        )}
+          )}
+        </div>
+        <p className="text-[10px] text-gray-400 mt-0.5">{slot.hint}</p>
       </div>
 
       <input
@@ -106,43 +103,43 @@ function FileSlot({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={disabled}
-          className="w-full border-2 border-dashed border-blue-200 hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-4 py-4 flex items-center justify-center gap-2 text-blue-500 text-xs font-semibold transition-colors"
+          className="w-full border-2 border-dashed border-blue-200 hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-3 py-3 flex items-center justify-center gap-1.5 text-blue-500 text-xs font-semibold transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           Tap to upload
         </button>
       ) : (
-        <div className="flex items-center gap-3 bg-white rounded-xl border border-green-200 px-3 py-2.5">
-          <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
+        <div className="flex items-center gap-2 bg-white rounded-xl border border-green-200 px-2.5 py-2">
+          <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center shrink-0 overflow-hidden">
             {isImage ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
             ) : (
-              <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-gray-700 truncate">{file.name}</p>
+            <p className="text-[11px] font-semibold text-gray-700 truncate">{file.name}</p>
             <p className="text-[10px] text-gray-400">{formatBytes(file.size)}</p>
           </div>
           <button
             type="button"
             onClick={onRemove}
             disabled={disabled}
-            className="w-7 h-7 rounded-full hover:bg-red-50 disabled:opacity-40 flex items-center justify-center text-red-400 hover:text-red-600 shrink-0 transition-colors"
+            className="w-6 h-6 rounded-full hover:bg-red-50 disabled:opacity-40 flex items-center justify-center text-red-400 hover:text-red-600 shrink-0 transition-colors"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
       )}
 
-      {error && <p className="text-xs text-red-500 font-medium mt-1.5">{error}</p>}
+      {error && <p className="text-[10px] text-red-500 font-medium mt-1.5">{error}</p>}
     </div>
   );
 }
@@ -192,7 +189,7 @@ export default function Step5({ loanId, onNext, onBack }: Props) {
         Upload clear photos or scans of the following documents to complete your application. JPG, PNG, WEBP or PDF · max 20 MB each.
       </p>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
         {DOC_SLOTS.map((slot) => (
           <FileSlot
             key={slot.key}
@@ -229,7 +226,7 @@ export default function Step5({ loanId, onNext, onBack }: Props) {
               Uploading…
             </>
           ) : (
-            'Submit Application →'
+            'Continue →'
           )}
         </button>
       </div>

@@ -234,6 +234,10 @@ export interface ProcessAAConsentResponse {
  * account was linked — the caller must not treat `aa=done` alone as success.
  */
 export async function processAAConsent(loan_id?: string): Promise<ProcessAAConsentResponse> {
+  if (DEV_BYPASS) {
+    await delay(800);
+    return { success: true, message: 'Consent verified successfully', data: null, errors: null, timestamp: new Date().toISOString() };
+  }
   const res = await fetch('/api/user/process-setu-consent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -265,6 +269,10 @@ export async function uploadDocuments(
   loan_id: string,
   entries: DocumentUploadEntry[]
 ): Promise<UploadDocumentsResponse> {
+  if (DEV_BYPASS) {
+    await delay(1000);
+    return { success: true, message: 'Documents uploaded successfully', data: null, errors: null, timestamp: new Date().toISOString() };
+  }
   const formData = new FormData();
   formData.append('loan_id', loan_id);
   for (const { documentType, file } of entries) {
@@ -276,5 +284,34 @@ export async function uploadDocuments(
     body: formData,
   });
   if (!res.ok && res.status !== 400) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+export interface RelationEntry {
+  name: string;
+  phone: string;
+  relationship_type: string;
+}
+
+export interface AddRelationsResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+  errors: string[] | null;
+  timestamp: string;
+}
+
+/** Upstream requires exactly 3 relations (see addUserRelationsSchema in Common-Server). */
+export async function addRelations(relations: RelationEntry[]): Promise<AddRelationsResponse> {
+  if (DEV_BYPASS) {
+    await delay(800);
+    return { success: true, message: 'Relations added successfully', data: null, errors: null, timestamp: new Date().toISOString() };
+  }
+  const res = await fetch('/api/user/add-relations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ relations }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
