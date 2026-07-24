@@ -127,7 +127,7 @@ export async function updateEmployeeDetails(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ...payload, prev_salary_date: toUpstreamDate(payload.prev_salary_date) }),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok && res.status !== 400) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
