@@ -234,10 +234,6 @@ export interface ProcessAAConsentResponse {
  * account was linked — the caller must not treat `aa=done` alone as success.
  */
 export async function processAAConsent(loan_id?: string): Promise<ProcessAAConsentResponse> {
-  if (DEV_BYPASS) {
-    await delay(800);
-    return { success: true, message: 'Consent verified successfully', data: null, errors: null, timestamp: new Date().toISOString() };
-  }
   const res = await fetch('/api/user/process-setu-consent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
